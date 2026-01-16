@@ -1,5 +1,13 @@
 {
-	"enabledPlugins": {
+	"permissions": {
+    "allow": [
+      "Bash(bun run lint:*)",
+      "Bash(bun run typecheck:*)",
+      "Bash(hive-mind read:*)",
+      "Bash(hive-mind grep:*)"
+    ]
+  },
+  "enabledPlugins": {
 		"typescript-lsp@claude-plugins-official": true,
 		"hive-mind@alignment-hive": true
 	},
