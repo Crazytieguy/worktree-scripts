@@ -100,9 +100,10 @@ async function main(): Promise<void> {
 		console.log(`Rebasing ${commitCount} commit(s) onto ${mainBranch}...`);
 		console.log();
 
-		// Attempt rebase
-		const rebaseResult = await $`git rebase ${mainBranch}`.nothrow();
+		// Attempt rebase (quiet to avoid stderr buffering issues with output ordering)
+		const rebaseResult = await $`git rebase ${mainBranch}`.nothrow().quiet();
 		if (rebaseResult.exitCode !== 0) {
+			process.stderr.write(rebaseResult.stderr);
 			console.log();
 			console.log("Rebase has conflicts. Please resolve them:");
 			console.log("  1. Fix the conflicts in the files listed above");
