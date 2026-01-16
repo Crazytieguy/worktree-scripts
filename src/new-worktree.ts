@@ -69,9 +69,13 @@ const NOUNS = [
 	"glow",
 ];
 
+function randomElement<T>(array: T[]): T {
+	return array[Math.floor(Math.random() * array.length)];
+}
+
 function generateRandomName(): string {
-	const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
-	const noun = NOUNS[Math.floor(Math.random() * NOUNS.length)];
+	const adj = randomElement(ADJECTIVES);
+	const noun = randomElement(NOUNS);
 	const num = Math.floor(Math.random() * 100);
 	return `${adj}-${noun}-${num}`;
 }

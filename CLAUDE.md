@@ -2,9 +2,12 @@
 
 CLI tools for git worktree management with Claude Code.
 
-## Build
+## Commands
 
 ```bash
+bun run lint         # Check with Biome
+bun run lint:fix     # Auto-fix lint issues
+bun run typecheck    # TypeScript type checking
 bun run build        # Build to dist/
 bun run install-global  # Copy to ~/.local/bin/
 ```

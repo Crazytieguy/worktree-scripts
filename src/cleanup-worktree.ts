@@ -44,10 +44,12 @@ async function main() {
 		process.exit(1);
 	}
 
-	// Check for uncommitted changes
-	const diffCheck = await $`git diff --quiet`.nothrow().quiet();
-	const diffCachedCheck = await $`git diff --cached --quiet`.nothrow().quiet();
-	if (diffCheck.exitCode !== 0 || diffCachedCheck.exitCode !== 0) {
+	// Check for uncommitted changes (staged or unstaged)
+	const hasUnstagedChanges =
+		(await $`git diff --quiet`.nothrow().quiet()).exitCode !== 0;
+	const hasStagedChanges =
+		(await $`git diff --cached --quiet`.nothrow().quiet()).exitCode !== 0;
+	if (hasUnstagedChanges || hasStagedChanges) {
 		console.error("Error: you have uncommitted changes");
 		console.error("Please commit or stash your changes before cleaning up");
 		process.exit(1);
@@ -72,12 +74,13 @@ async function main() {
 	console.log();
 
 	// Count commits to rebase
-	const commitCountOutput =
+	const commitCountText = (
 		await $`git rev-list --count ${mainBranch}..${currentBranch}`
 			.nothrow()
-			.quiet();
-	const commitCount =
-		parseInt(commitCountOutput.stdout.toString().trim(), 10) || 0;
+			.quiet()
+			.text()
+	).trim();
+	const commitCount = parseInt(commitCountText, 10) || 0;
 
 	if (commitCount === 0) {
 		console.log(
@@ -108,13 +111,12 @@ async function main() {
 	// Show the commits that will be on the branch
 	console.log();
 	console.log(`Commits on ${currentBranch}:`);
-	const logOutput = await $`git log --oneline ${mainBranch}..${currentBranch}`
-		.nothrow()
-		.quiet();
-	const commits = logOutput.stdout.toString().trim();
+	const commits = (
+		await $`git log --oneline ${mainBranch}..${currentBranch}`.nothrow().text()
+	).trim();
 	if (commits) {
-		for (const c of commits.split("\n").slice(0, 10)) {
-			console.log(`  ${c}`);
+		for (const line of commits.split("\n").slice(0, 10)) {
+			console.log(`  ${line}`);
 		}
 	} else {
 		console.log("  (none)");
