@@ -32,18 +32,20 @@ async function main(): Promise<void> {
 		process.exit(1);
 	}
 
-	// Find main worktree (the first one listed)
-	const worktreeList = (await $`git worktree list`.text()).trim();
-	const firstLine = worktreeList.split("\n")[0];
-	const match = firstLine.match(/^(\S+)\s+\S+\s+\[(.+)\]$/);
+	// Find main worktree (the first one listed, using porcelain for reliable parsing)
+	const worktreeList = (await $`git worktree list --porcelain`.text()).trim();
+	const mainWorktreeLines = worktreeList.split("\n\n")[0].split("\n");
+	const mainPath = mainWorktreeLines[0].replace("worktree ", "");
+	const mainBranchLine = mainWorktreeLines.find((line) =>
+		line.startsWith("branch "),
+	);
 
-	if (!match) {
+	if (!mainBranchLine) {
 		console.error("Error: could not parse git worktree list output");
 		process.exit(1);
 	}
 
-	const mainPath = match[1];
-	const mainBranch = match[2];
+	const mainBranch = mainBranchLine.replace("branch refs/heads/", "");
 
 	// Check we're not in the main worktree
 	if (currentPath === mainPath) {
@@ -123,9 +125,7 @@ async function main(): Promise<void> {
 		await $`git log --oneline ${mainBranch}..${currentBranch}`.nothrow().text()
 	).trim();
 	if (commits) {
-		for (const line of commits.split("\n").slice(0, 10)) {
-			console.log(`  ${line}`);
-		}
+		console.log(commits.replace(/^/gm, "  "));
 	} else {
 		console.log("  (none)");
 	}
