@@ -1,18 +1,21 @@
 {
-  "name": "worktree-scripts",
-  "version": "1.0.0",
-  "type": "module",
-  "scripts": {
-    "typecheck": "tsc --noEmit",
-    "build": "bun build src/new-worktree.ts --outfile dist/new-worktree --target bun && bun build src/cleanup-worktree.ts --outfile dist/cleanup-worktree --target bun",
-    "postbuild": "echo '#!/usr/bin/env bun' | cat - dist/new-worktree > dist/new-worktree.tmp && mv dist/new-worktree.tmp dist/new-worktree && echo '#!/usr/bin/env bun' | cat - dist/cleanup-worktree > dist/cleanup-worktree.tmp && mv dist/cleanup-worktree.tmp dist/cleanup-worktree && chmod +x dist/*",
-    "install-global": "cp dist/new-worktree dist/cleanup-worktree ~/.local/bin/"
-  },
-  "dependencies": {
-    "ignore": "^7.0.5"
-  },
-  "devDependencies": {
-    "bun-types": "^1.3.6",
-    "typescript": "^5.9.3"
-  }
+	"name": "worktree-scripts",
+	"version": "1.0.0",
+	"type": "module",
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"lint": "biome check",
+		"lint:fix": "biome check --write",
+		"build": "bun build src/new-worktree.ts --outfile dist/new-worktree --target bun && bun build src/cleanup-worktree.ts --outfile dist/cleanup-worktree --target bun",
+		"postbuild": "echo '#!/usr/bin/env bun' | cat - dist/new-worktree > dist/new-worktree.tmp && mv dist/new-worktree.tmp dist/new-worktree && echo '#!/usr/bin/env bun' | cat - dist/cleanup-worktree > dist/cleanup-worktree.tmp && mv dist/cleanup-worktree.tmp dist/cleanup-worktree && chmod +x dist/*",
+		"install-global": "cp dist/new-worktree dist/cleanup-worktree ~/.local/bin/"
+	},
+	"dependencies": {
+		"ignore": "^7.0.5"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.3.11",
+		"bun-types": "^1.3.6",
+		"typescript": "^5.9.3"
+	}
 }

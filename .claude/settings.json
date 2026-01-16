@@ -1,5 +1,14 @@
 {
-  "enabledPlugins": {
-    "typescript-lsp@claude-plugins-official": true
-  }
+	"enabledPlugins": {
+		"typescript-lsp@claude-plugins-official": true,
+		"hive-mind@alignment-hive": true
+	},
+	"extraKnownMarketplaces": {
+		"alignment-hive": {
+			"source": {
+				"source": "github",
+				"repo": "Crazytieguy/alignment-hive"
+			}
+		}
+	}
 }
