@@ -6,12 +6,7 @@
 		"typecheck": "tsc --noEmit",
 		"lint": "biome check",
 		"lint:fix": "biome check --write",
-		"build": "bun build src/new-worktree.ts --outfile dist/new-worktree --target bun && bun build src/cleanup-worktree.ts --outfile dist/cleanup-worktree --target bun",
-		"postbuild": "echo '#!/usr/bin/env bun' | cat - dist/new-worktree > dist/new-worktree.tmp && mv dist/new-worktree.tmp dist/new-worktree && echo '#!/usr/bin/env bun' | cat - dist/cleanup-worktree > dist/cleanup-worktree.tmp && mv dist/cleanup-worktree.tmp dist/cleanup-worktree && chmod +x dist/*",
-		"install-global": "cp dist/new-worktree dist/cleanup-worktree ~/.local/bin/"
-	},
-	"dependencies": {
-		"ignore": "^7.0.5"
+		"install-global": "cp src/new-worktree.ts ~/.local/bin/new-worktree && cp src/cleanup-worktree.ts ~/.local/bin/cleanup-worktree && chmod +x ~/.local/bin/new-worktree ~/.local/bin/cleanup-worktree"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.3.11",

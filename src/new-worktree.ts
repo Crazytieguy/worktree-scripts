@@ -1,7 +1,7 @@
-import { cpSync, existsSync, mkdirSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
+#!/usr/bin/env bun
+import { cpSync, mkdirSync } from "node:fs";
+import { basename, join } from "node:path";
 import { $, argv } from "bun";
-import ignore from "ignore";
 
 // Word lists for random branch names
 const ADJECTIVES = [
@@ -70,7 +70,7 @@ const NOUNS = [
 ];
 
 function randomElement<T>(array: T[]): T {
-	return array[Math.floor(Math.random() * array.length)];
+	return array[Math.floor(Math.random() * array.length)] as T;
 }
 
 function generateRandomName(): string {
@@ -80,7 +80,7 @@ function generateRandomName(): string {
 	return `${adj}-${noun}-${num}`;
 }
 
-async function main() {
+async function main(): Promise<void> {
 	// Check we're in a git repo
 	const gitCheck = await $`git rev-parse --git-dir`.nothrow().quiet();
 	if (gitCheck.exitCode !== 0) {
@@ -139,44 +139,20 @@ async function main() {
 	mkdirSync(join(home, "worktrees", project), { recursive: true });
 	await $`git worktree add -b ${branch} ${worktreePath}`;
 
-	// Copy files matching .worktreeinclude patterns (only gitignored files)
-	const worktreeIncludePath = join(repoRoot, ".worktreeinclude");
-	if (existsSync(worktreeIncludePath)) {
-		console.log("\nCopying files from .worktreeinclude...");
+	// Copy all gitignored items to worktree
+	const ignoredOutput =
+		await $`git ls-files --others --ignored --exclude-standard --directory`
+			.cwd(repoRoot)
+			.text();
+	const ignoredItems = ignoredOutput.trim().split("\n").filter(Boolean);
 
-		const patterns = await Bun.file(worktreeIncludePath).text();
-		const ig = ignore().add(patterns);
-
-		// Get all gitignored files
-		const ignoredOutput =
-			await $`git ls-files --others --ignored --exclude-standard`
-				.cwd(repoRoot)
-				.text();
-		const ignoredFiles = ignoredOutput.trim().split("\n").filter(Boolean);
-
-		// Copy files that match .worktreeinclude patterns
-		const copiedDirs = new Set<string>();
-		for (const file of ignoredFiles) {
-			if (ig.ignores(file)) {
-				const src = join(repoRoot, file);
-				const dest = join(worktreePath, file);
-				mkdirSync(dirname(dest), { recursive: true });
-				cpSync(src, dest);
-
-				// Track top-level matched directory for logging
-				const parts = file.split("/");
-				for (let i = 1; i <= parts.length; i++) {
-					const prefix = parts.slice(0, i).join("/");
-					if (ig.ignores(prefix)) {
-						copiedDirs.add(prefix);
-						break;
-					}
-				}
-			}
-		}
-
-		for (const dir of copiedDirs) {
-			console.log(`  Copied: ${dir}`);
+	if (ignoredItems.length > 0) {
+		console.log("\nCopying gitignored files to worktree...");
+		for (const item of ignoredItems) {
+			const src = join(repoRoot, item);
+			const dest = join(worktreePath, item);
+			console.log(`  ${item}`);
+			cpSync(src, dest, { recursive: true });
 		}
 	}
 

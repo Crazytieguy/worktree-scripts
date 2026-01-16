@@ -1,6 +1,7 @@
+#!/usr/bin/env bun
 import { $, argv } from "bun";
 
-async function main() {
+async function main(): Promise<void> {
 	// Check we're in a git repo
 	const gitCheck = await $`git rev-parse --git-dir`.nothrow().quiet();
 	if (gitCheck.exitCode !== 0) {
@@ -23,6 +24,13 @@ async function main() {
 	const currentBranch = (
 		await $`git rev-parse --abbrev-ref HEAD`.text()
 	).trim();
+
+	// Check for detached HEAD state
+	if (currentBranch === "HEAD") {
+		console.error("Error: worktree is in detached HEAD state");
+		console.error("Please checkout a branch before cleaning up");
+		process.exit(1);
+	}
 
 	// Find main worktree (the first one listed)
 	const worktreeList = (await $`git worktree list`.text()).trim();
@@ -127,13 +135,33 @@ async function main() {
 	console.log("Switching to main worktree...");
 	process.chdir(mainPath);
 
+	// Fast-forward main to include the worktree's commits
+	console.log(`Fast-forwarding ${mainBranch} to ${currentBranch}...`);
+	const mergeResult = await $`git merge --ff-only ${currentBranch}`
+		.nothrow()
+		.quiet();
+	if (mergeResult.exitCode !== 0) {
+		console.error(
+			`Error: could not fast-forward ${mainBranch} to ${currentBranch}`,
+		);
+		console.error("This can happen if main has new commits. Try:");
+		console.error(`  1. Go back to the worktree: cd ${currentPath}`);
+		console.error(`  2. Rebase again: git rebase ${mainBranch}`);
+		console.error("  3. Run cleanup-worktree again");
+		process.exit(1);
+	}
+
 	// Remove the worktree
 	console.log(`Removing worktree at ${currentPath}...`);
 	await $`git worktree remove ${currentPath}`;
 
+	// Delete the branch since it's now merged into main
+	console.log(`Deleting branch ${currentBranch}...`);
+	await $`git branch -d ${currentBranch}`.nothrow().quiet();
+
 	console.log();
 	console.log("Cleanup complete!");
-	console.log(`Branch '${currentBranch}' is ready to merge`);
+	console.log(`Your changes are now on ${mainBranch}`);
 	console.log(`You are now in: ${mainPath}`);
 }
 
