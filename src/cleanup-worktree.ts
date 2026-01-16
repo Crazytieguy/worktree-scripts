@@ -115,7 +115,6 @@ async function main(): Promise<void> {
 			process.exit(1);
 		}
 
-		console.log();
 		console.log("Rebase successful!");
 	}
 
