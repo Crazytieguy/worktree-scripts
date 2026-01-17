@@ -103,13 +103,28 @@ async function main(): Promise<void> {
 		// Attempt rebase (quiet to avoid stderr buffering issues with output ordering)
 		const rebaseResult = await $`git rebase ${mainBranch}`.nothrow().quiet();
 		if (rebaseResult.exitCode !== 0) {
-			process.stderr.write(rebaseResult.stderr);
-			console.log();
-			console.log("Rebase has conflicts. Please resolve them:");
-			console.log("  1. Fix the conflicts in the files listed above");
-			console.log("  2. Run: git add <resolved-files>");
-			console.log("  3. Run: git rebase --continue");
-			console.log("  4. Run: cleanup-worktree again");
+			// Get the list of conflicting files
+			const conflictingFiles = (
+				await $`git diff --name-only --diff-filter=U`.nothrow().quiet().text()
+			).trim();
+
+			if (conflictingFiles) {
+				console.log("Rebase has conflicts in:");
+				for (const file of conflictingFiles.split("\n")) {
+					console.log(`  ${file}`);
+				}
+				console.log();
+				console.log("To resolve:");
+				console.log("  1. Fix the conflicts in the files above");
+				console.log("  2. Run: git add <resolved-files>");
+				console.log("  3. Run: git rebase --continue");
+				console.log("  4. Run: cleanup-worktree again");
+			} else {
+				// No conflicts but rebase failed - show git's output
+				process.stderr.write(rebaseResult.stderr);
+				console.log();
+				console.log("Rebase failed. Check the error above.");
+			}
 			console.log();
 			console.log("Or run: cleanup-worktree --abort to abort the rebase");
 			process.exit(1);
