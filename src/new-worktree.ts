@@ -159,8 +159,7 @@ async function main(): Promise<void> {
 	console.log(`\nWorktree created at: ${worktreePath}`);
 	console.log("Starting claude...\n");
 
-	// Replace this process with claude running in the new worktree
-	process.chdir(worktreePath);
+	// Spawn claude in the new worktree (but keep this process in the original directory)
 	const proc = Bun.spawn(["claude", ...claudeFlags], {
 		cwd: worktreePath,
 		stdin: "inherit",
