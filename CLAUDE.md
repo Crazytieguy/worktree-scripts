@@ -13,7 +13,7 @@ bun run install-global  # Copy to ~/.local/bin/
 
 ## Architecture
 
-- `src/new-worktree.ts` - Creates worktrees, copies gitignored files, launches Claude
-- `src/cleanup-worktree.ts` - Rebases and removes worktrees
+- `src/claude-worktree.ts` - Creates worktrees, copies gitignored files, launches Claude
+- `src/land-worktree.ts` - Rebases and removes worktrees
 
 Both scripts are standalone CLI tools that run directly with Bun.

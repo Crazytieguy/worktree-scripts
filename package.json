@@ -6,7 +6,7 @@
 		"typecheck": "tsc --noEmit",
 		"lint": "biome check",
 		"lint:fix": "biome check --write",
-		"install-global": "cp src/new-worktree.ts ~/.local/bin/new-worktree && cp src/cleanup-worktree.ts ~/.local/bin/cleanup-worktree && chmod +x ~/.local/bin/new-worktree ~/.local/bin/cleanup-worktree"
+		"install-global": "cp src/claude-worktree.ts ~/.local/bin/claude-worktree && cp src/land-worktree.ts ~/.local/bin/land-worktree && chmod +x ~/.local/bin/claude-worktree ~/.local/bin/land-worktree"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.3.11",
