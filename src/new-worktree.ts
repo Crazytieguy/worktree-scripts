@@ -125,9 +125,15 @@ async function main(): Promise<void> {
 		process.exit(1);
 	}
 
-	// Get repo root and project name
-	const repoRoot = (await $`git rev-parse --show-toplevel`.text()).trim();
-	const project = basename(repoRoot);
+	// Get main repo path (first entry in worktree list is always the main repo)
+	const worktreeList = await $`git worktree list --porcelain`.text();
+	const mainRepoPath = worktreeList.match(/^worktree (.+)/)?.[1];
+	if (!mainRepoPath) {
+		console.error("Error: could not determine main repo path");
+		process.exit(1);
+	}
+
+	const project = basename(mainRepoPath);
 	const home = process.env.HOME ?? process.env.USERPROFILE;
 	if (!home) {
 		console.error("Error: HOME environment variable not set");
@@ -135,21 +141,21 @@ async function main(): Promise<void> {
 	}
 	const worktreePath = join(home, "worktrees", project, branch);
 
-	// Create worktree with new branch
+	// Create worktree with new branch (must run from main repo)
 	mkdirSync(join(home, "worktrees", project), { recursive: true });
-	await $`git worktree add -b ${branch} ${worktreePath}`;
+	await $`git worktree add -b ${branch} ${worktreePath}`.cwd(mainRepoPath);
 
-	// Copy all gitignored items to worktree
+	// Copy all gitignored items from main repo to worktree
 	const ignoredOutput =
 		await $`git ls-files --others --ignored --exclude-standard --directory`
-			.cwd(repoRoot)
+			.cwd(mainRepoPath)
 			.text();
 	const ignoredItems = ignoredOutput.trim().split("\n").filter(Boolean);
 
 	if (ignoredItems.length > 0) {
 		console.log("\nCopying gitignored files to worktree...");
 		for (const item of ignoredItems) {
-			const src = join(repoRoot, item);
+			const src = join(mainRepoPath, item);
 			const dest = join(worktreePath, item);
 			console.log(`  ${item}`);
 			cpSync(src, dest, { recursive: true });
@@ -159,9 +165,10 @@ async function main(): Promise<void> {
 	console.log(`\nWorktree created at: ${worktreePath}`);
 	console.log("Starting claude...\n");
 
-	// Spawn claude in the new worktree (but keep this process in the original directory)
+	// Change to the worktree directory so the shell ends up there after claude exits
+	process.chdir(worktreePath);
+
 	const proc = Bun.spawn(["claude", ...claudeFlags], {
-		cwd: worktreePath,
 		stdin: "inherit",
 		stdout: "inherit",
 		stderr: "inherit",
