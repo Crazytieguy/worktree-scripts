@@ -88,31 +88,10 @@ async function main(): Promise<void> {
 		process.exit(1);
 	}
 
-	// Parse arguments: first non-flag arg is branch name, rest go to claude
-	let branch = "";
-	const claudeFlags: string[] = [];
-	let parsingBranch = true;
-
-	for (const arg of argv.slice(2)) {
-		if (parsingBranch) {
-			if (arg === "--") {
-				parsingBranch = false;
-			} else if (arg.startsWith("-")) {
-				parsingBranch = false;
-				claudeFlags.push(arg);
-			} else {
-				branch = arg;
-				parsingBranch = false;
-			}
-		} else {
-			claudeFlags.push(arg);
-		}
-	}
-
-	// Generate random branch name if not provided
-	if (!branch) {
-		branch = generateRandomName();
-		console.log(`Generated branch name: ${branch}`);
+	// Get optional branch name from first argument
+	const branch = argv[2] || generateRandomName();
+	if (!argv[2]) {
+		console.error(`Generated branch name: ${branch}`);
 	}
 
 	// Error if branch already exists
@@ -153,28 +132,17 @@ async function main(): Promise<void> {
 	const ignoredItems = ignoredOutput.trim().split("\n").filter(Boolean);
 
 	if (ignoredItems.length > 0) {
-		console.log("\nCopying gitignored files to worktree...");
+		console.error("\nCopying gitignored files to worktree...");
 		for (const item of ignoredItems) {
 			const src = join(mainRepoPath, item);
 			const dest = join(worktreePath, item);
-			console.log(`  ${item}`);
+			console.error(`  ${item}`);
 			cpSync(src, dest, { recursive: true });
 		}
 	}
 
-	console.log(`\nWorktree created at: ${worktreePath}`);
-	console.log("Starting claude...\n");
-
-	// Change to the worktree directory so the shell ends up there after claude exits
-	process.chdir(worktreePath);
-
-	const proc = Bun.spawn(["claude", ...claudeFlags], {
-		stdin: "inherit",
-		stdout: "inherit",
-		stderr: "inherit",
-	});
-	const exitCode = await proc.exited;
-	process.exit(exitCode);
+	// Print worktree path to stdout for caller to use
+	console.log(worktreePath);
 }
 
 main().catch((err) => {
