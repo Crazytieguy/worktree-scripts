@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Check we're in a git repo
+if ! git rev-parse --git-dir >/dev/null 2>&1; then
+    echo "Error: not in a git repository" >&2
+    exit 1
+fi
+
+# Handle --abort flag
+if [[ "${1:-}" == "--abort" ]]; then
+    echo "Aborting rebase..."
+    git rebase --abort
+    echo "Rebase aborted. You can try land-worktree again or continue working."
+    exit 0
+fi
+
+# Get current worktree path and branch
+current_path=$(git rev-parse --show-toplevel)
+current_branch=$(git rev-parse --abbrev-ref HEAD)
+
+# Check for detached HEAD state
+if [[ "$current_branch" == "HEAD" ]]; then
+    echo "Error: worktree is in detached HEAD state" >&2
+    echo "Please checkout a branch before cleaning up" >&2
+    exit 1
+fi
+
+# Find main worktree (the first one listed, using porcelain for reliable parsing)
+worktree_list=$(git worktree list --porcelain)
+main_path=$(echo "$worktree_list" | head -1 | sed 's/^worktree //')
+main_branch=$(echo "$worktree_list" | grep -m1 '^branch ' | sed 's/^branch refs\/heads\///')
+
+if [[ -z "$main_branch" ]]; then
+    echo "Error: could not parse git worktree list output" >&2
+    exit 1
+fi
+
+# Check we're not in the main worktree
+if [[ "$current_path" == "$main_path" ]]; then
+    echo "Error: cannot cleanup the main worktree" >&2
+    echo "Run this command from within a secondary worktree" >&2
+    exit 1
+fi
+
+# Check for uncommitted changes (staged or unstaged)
+if ! git diff --quiet 2>/dev/null || ! git diff --cached --quiet 2>/dev/null; then
+    echo "Error: you have uncommitted changes" >&2
+    echo "Please commit or stash your changes before cleaning up" >&2
+    exit 1
+fi
+
+# Check for untracked files
+untracked_files=$(git ls-files --others --exclude-standard)
+if [[ -n "$untracked_files" ]]; then
+    echo "Error: you have untracked files" >&2
+    echo "Please commit, remove, or add them to .gitignore before cleaning up" >&2
+    exit 1
+fi
+
+echo "Current worktree: $current_path"
+echo "Current branch: $current_branch"
+echo "Main worktree: $main_path"
+echo "Main branch: $main_branch"
+echo ""
+
+# Count commits to rebase
+commit_count=$(git rev-list --count "$main_branch..$current_branch" 2>/dev/null || echo "0")
+
+if [[ "$commit_count" -eq 0 ]]; then
+    echo "No commits to rebase (branch is up to date with $main_branch)"
+else
+    echo "Rebasing $commit_count commit(s) onto $main_branch..."
+    echo ""
+
+    # Attempt rebase
+    if ! rebase_output=$(git rebase "$main_branch" 2>&1); then
+        # Get the list of conflicting files
+        conflicting_files=$(git diff --name-only --diff-filter=U 2>/dev/null || true)
+
+        if [[ -n "$conflicting_files" ]]; then
+            echo "Rebase has conflicts in:"
+            while IFS= read -r file; do
+                echo "  $file"
+            done <<< "$conflicting_files"
+            echo ""
+            echo "To resolve:"
+            echo "  1. Fix the conflicts in the files above"
+            echo "  2. Run: git add <resolved-files>"
+            echo "  3. Run: git rebase --continue"
+            echo "  4. Run: land-worktree again"
+        else
+            # No conflicts but rebase failed - show git's output
+            echo "$rebase_output" >&2
+            echo ""
+            echo "Rebase failed. Check the error above."
+        fi
+        echo ""
+        echo "Or run: land-worktree --abort to abort the rebase"
+        exit 1
+    fi
+
+    echo "Rebase successful!"
+fi
+
+# Show the commits that will be on the branch
+echo ""
+echo "Commits on $current_branch:"
+commits=$(git log --oneline "$main_branch..$current_branch" 2>/dev/null || true)
+if [[ -n "$commits" ]]; then
+    echo "$commits" | sed 's/^/  /'
+else
+    echo "  (none)"
+fi
+
+# Move to main worktree before removing current one
+echo ""
+echo "Switching to main worktree..."
+cd "$main_path"
+
+# Fast-forward main to include the worktree's commits
+echo "Fast-forwarding $main_branch to $current_branch..."
+if ! git merge --ff-only "$current_branch" >/dev/null 2>&1; then
+    echo "Error: could not fast-forward $main_branch to $current_branch" >&2
+    echo "This can happen if main has new commits. Try:" >&2
+    echo "  1. Go back to the worktree: cd $current_path" >&2
+    echo "  2. Rebase again: git rebase $main_branch" >&2
+    echo "  3. Run land-worktree again" >&2
+    exit 1
+fi
+
+# Remove the worktree
+echo "Removing worktree at $current_path..."
+git worktree remove "$current_path"
+
+# Delete the branch since it's now merged into main
+echo "Deleting branch $current_branch..."
+git branch -d "$current_branch" >/dev/null 2>&1 || true
+
+echo ""
+echo "Cleanup complete!"
+echo "Your changes are now on $main_branch"
+echo "You are now in: $main_path"

@@ -1,19 +1,19 @@
 # worktree-scripts
 
-CLI tools for managing git worktrees when using Claude Code.
+Bash scripts for managing git worktrees.
 
 ## Scripts
 
-### `new-worktree [branch-name] [-- claude-flags...]`
+### `spawn-worktree [branch-name]`
 
-Creates a new git worktree and launches Claude in it.
+Creates a new git worktree.
 
 - If no branch name provided, generates a random one (e.g., `swift-fox-42`)
 - Creates worktree at `~/worktrees/<project>/<branch>`
 - Copies all gitignored files
-- Launches Claude with any additional flags passed after `--`
+- Prints the worktree path to stdout
 
-### `cleanup-worktree [--abort]`
+### `land-worktree [--abort]`
 
 Cleans up the current worktree and integrates changes into main.
 
@@ -21,11 +21,3 @@ Cleans up the current worktree and integrates changes into main.
 - Fast-forwards main to include the commits
 - Removes the worktree and deletes the branch
 - Use `--abort` to abort a conflicted rebase
-
-## Installation
-
-```bash
-bun run install-global
-```
-
-Copies `new-worktree` and `cleanup-worktree` to `~/.local/bin/`.

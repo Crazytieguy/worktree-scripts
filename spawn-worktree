@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Word lists for random branch names
+ADJECTIVES=(
+    swift quick bright calm clever cool crisp eager fast fresh
+    keen light neat prime sharp silent smooth steady warm bold
+    brave clear fleet golden agile nimble rapid blazing cosmic
+)
+
+NOUNS=(
+    fox wolf bear hawk lion tiger raven eagle falcon otter
+    cedar maple oak pine willow river stream brook delta canyon
+    spark flame ember comet meteor nova pulse wave drift glow
+)
+
+generate_random_name() {
+    local adj="${ADJECTIVES[$RANDOM % ${#ADJECTIVES[@]}]}"
+    local noun="${NOUNS[$RANDOM % ${#NOUNS[@]}]}"
+    local num=$((RANDOM % 100))
+    echo "${adj}-${noun}-${num}"
+}
+
+# Check we're in a git repo
+if ! git rev-parse --git-dir >/dev/null 2>&1; then
+    echo "Error: not in a git repository" >&2
+    exit 1
+fi
+
+# Get optional branch name from first argument
+branch="${1:-}"
+if [[ -z "$branch" ]]; then
+    branch=$(generate_random_name)
+    echo "Generated branch name: $branch" >&2
+fi
+
+# Error if branch already exists
+if git show-ref --verify --quiet "refs/heads/$branch" 2>/dev/null; then
+    echo "Error: branch '$branch' already exists" >&2
+    exit 1
+fi
+
+# Get main repo path (first entry in worktree list is always the main repo)
+main_repo_path=$(git worktree list --porcelain | head -1 | sed 's/^worktree //')
+if [[ -z "$main_repo_path" ]]; then
+    echo "Error: could not determine main repo path" >&2
+    exit 1
+fi
+
+project=$(basename "$main_repo_path")
+home="${HOME:-}"
+if [[ -z "$home" ]]; then
+    echo "Error: HOME environment variable not set" >&2
+    exit 1
+fi
+worktree_path="$home/worktrees/$project/$branch"
+
+# Create worktree with new branch (must run from main repo)
+mkdir -p "$home/worktrees/$project"
+git -C "$main_repo_path" worktree add -b "$branch" "$worktree_path"
+
+# Copy all gitignored items from main repo to worktree
+ignored_items=$(git -C "$main_repo_path" ls-files --others --ignored --exclude-standard --directory)
+
+if [[ -n "$ignored_items" ]]; then
+    echo "" >&2
+    echo "Copying gitignored files to worktree..." >&2
+    while IFS= read -r item; do
+        [[ -z "$item" ]] && continue
+        src="$main_repo_path/$item"
+        dest="$worktree_path/$item"
+        echo "  $item" >&2
+        cp -r "$src" "$dest"
+    done <<< "$ignored_items"
+fi
+
+# Print worktree path to stdout for caller to use
+echo "$worktree_path"
