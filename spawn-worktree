@@ -57,7 +57,7 @@ worktree_path="$home/worktrees/$project/$branch"
 
 # Create worktree with new branch (must run from main repo)
 mkdir -p "$home/worktrees/$project"
-git -C "$main_repo_path" worktree add -b "$branch" "$worktree_path"
+git -C "$main_repo_path" worktree add -b "$branch" "$worktree_path" >&2
 
 # Copy all gitignored items from main repo to worktree
 ignored_items=$(git -C "$main_repo_path" ls-files --others --ignored --exclude-standard --directory)
@@ -65,13 +65,7 @@ ignored_items=$(git -C "$main_repo_path" ls-files --others --ignored --exclude-s
 if [[ -n "$ignored_items" ]]; then
     echo "" >&2
     echo "Copying gitignored files to worktree..." >&2
-    while IFS= read -r item; do
-        [[ -z "$item" ]] && continue
-        src="$main_repo_path/$item"
-        dest="$worktree_path/$item"
-        echo "  $item" >&2
-        cp -r "$src" "$dest"
-    done <<< "$ignored_items"
+    echo "$ignored_items" | rsync -a --files-from=- "$main_repo_path/" "$worktree_path/"
 fi
 
 # Print worktree path to stdout for caller to use
